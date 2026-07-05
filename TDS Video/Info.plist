@@ -25,6 +25,8 @@
 	<array>
 		<string>INSendMessageIntent</string>
 	</array>
+	<key>RPBroadcastBundleID</key>
+	<string>net.thomasdye.TDS-Video3.ScreenRec</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

@@ -2,72 +2,65 @@
 //  CPTemplateApplicationScene+Swizzle.m
 //  TDS Video
 //
-//  Created by Thomas Dye on 05/08/2024.
-//
 
 #import "CPTemplateApplicationScene.h"
 #import <objc/runtime.h>
+
+static void swizzleIfExists(Class cls, NSString *originalName, SEL swizzledSel) {
+    SEL originalSel = NSSelectorFromString(originalName);
+    Method originalMethod = class_getInstanceMethod(cls, originalSel);
+    Method swizzledMethod = class_getInstanceMethod(cls, swizzledSel);
+    if (!swizzledMethod) return;
+    if (originalMethod) {
+        method_exchangeImplementations(originalMethod, swizzledMethod);
+    } else {
+        class_addMethod(cls, originalSel,
+                        method_getImplementation(swizzledMethod),
+                        method_getTypeEncoding(swizzledMethod));
+    }
+}
 
 @implementation CPTemplateApplicationScene (Swizzle)
 
 + (void)load {
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
-        Class class = [self class];
-
-        SEL originalSelector = NSSelectorFromString(@"_shouldCreateCarWindow");
-        SEL swizzledSelector = @selector(xyz_shouldCreateCarWindow);
-
-        Method originalMethod = class_getInstanceMethod(class, originalSelector);
-        Method swizzledMethod = class_getInstanceMethod(class, swizzledSelector);
-
-        BOOL didAddMethod = class_addMethod(class,
-                                            originalSelector,
-                                            method_getImplementation(swizzledMethod),
-                                            method_getTypeEncoding(swizzledMethod));
-
-        if (didAddMethod) {
-            class_replaceMethod(class,
-                                swizzledSelector,
-                                method_getImplementation(originalMethod),
-                                method_getTypeEncoding(originalMethod));
-        } else {
-            method_exchangeImplementations(originalMethod, swizzledMethod);
-        }
-        
+        Class cls = [self class];
+        // iOS 18 and earlier
+        swizzleIfExists(cls, @"_shouldCreateCarWindow", @selector(xyz_shouldCreateCarWindow));
+        // iOS 26 candidates
+        swizzleIfExists(cls, @"_canCreateCarPlayWindow", @selector(xyz_shouldCreateCarWindow));
+        swizzleIfExists(cls, @"_isCarPlayWindowAllowed", @selector(xyz_shouldCreateCarWindow));
+        swizzleIfExists(cls, @"_shouldPresentCarPlayWindow", @selector(xyz_shouldCreateCarWindow));
+        swizzleIfExists(cls, @"_carPlayWindowAuthorized", @selector(xyz_shouldCreateCarWindow));
     });
 }
 
 - (BOOL)xyz_shouldCreateCarWindow {
-    // Custom logic or call the original implementation if needed
     return YES;
-}
-
-- (BOOL)publicShouldCreateCarWindow {
-    return [self xyz_shouldCreateCarWindow];
 }
 
 @end
 
 
-#import <objc/runtime.h>
-
-
 @implementation CPInterfaceController (Bypass)
 
 + (void)load {
-    Method original = class_getInstanceMethod(self, @selector(clientPushedIllegalTemplateOfClass:));
-    Method swizzled = class_getInstanceMethod(self, @selector(bypass_clientPushedIllegalTemplateOfClass:));
-
-    method_exchangeImplementations(original, swizzled);
-
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        SEL original = @selector(clientPushedIllegalTemplateOfClass:);
+        SEL swizzled = @selector(bypass_clientPushedIllegalTemplateOfClass:);
+        Method originalMethod = class_getInstanceMethod(self, original);
+        Method swizzledMethod = class_getInstanceMethod(self, swizzled);
+        if (originalMethod && swizzledMethod) {
+            method_exchangeImplementations(originalMethod, swizzledMethod);
+        }
+    });
 }
 
 - (void)bypass_clientPushedIllegalTemplateOfClass:(Class)cls {
-    NSLog(@"Bypassing illegal template restriction for class:");
-    // Do nothing - just bypass the check
+    NSLog(@"Bypassing illegal template restriction");
 }
-
 
 @end
 
@@ -77,7 +70,6 @@
 - (UIView *)hitTest:(CGPoint)point withEvent:(UIEvent *)event {
     UIView *view = [super hitTest:point withEvent:event];
     if (!view) {
-        NSLog(@"Touch ignored, forwarding to first responder...");
         return self.rootViewController.view;
     }
     return view;
@@ -87,21 +79,12 @@
 
 @implementation CPWindow (Fix)
 
-- (BOOL)canBecomeFirstResponder {
-    return YES;
-}
-
-- (BOOL)canResignFirstResponder {
-    return NO;
-}
+- (BOOL)canBecomeFirstResponder { return YES; }
+- (BOOL)canResignFirstResponder { return NO; }
 
 - (void)didMoveToSuperview {
     [super didMoveToSuperview];
-    [self becomeFirstResponder]; // Ensure it handles input
+    [self becomeFirstResponder];
 }
 
 @end
-
-
-
-

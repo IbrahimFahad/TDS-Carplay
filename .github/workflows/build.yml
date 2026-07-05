@@ -29,10 +29,15 @@ jobs:
 
     - name: Create IPA
       run: |
+        echo "=== Archive contents ==="
+        find "$PWD/build/TDSVideo.xcarchive" -name "*.app" 2>/dev/null
+        APP_PATH=$(find "$PWD/build/TDSVideo.xcarchive" -name "*.app" | head -1)
+        echo "Found app at: $APP_PATH"
         mkdir -p "$PWD/build/Payload"
-        cp -r "$PWD/build/TDSVideo.xcarchive/Products/Applications/TDS Video.app" "$PWD/build/Payload/"
+        cp -r "$APP_PATH" "$PWD/build/Payload/"
         cd "$PWD/build"
         zip -r TDSVideo.ipa Payload
+
 
     - name: Upload IPA
       uses: actions/upload-artifact@v4

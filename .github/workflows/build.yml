@@ -25,7 +25,13 @@ jobs:
           CODE_SIGN_IDENTITY="" \
           CODE_SIGNING_REQUIRED=NO \
           CODE_SIGNING_ALLOWED=NO \
-          DEVELOPMENT_TEAM="" 2>&1 | tail -50
+          DEVELOPMENT_TEAM="" \
+          SKIP_INSTALL=NO \
+          2>&1 | tee build.log; exit ${PIPESTATUS[0]}
+
+    - name: Show build errors if failed
+      if: failure()
+      run: grep -E "error:|warning:|BUILD FAILED" build.log | tail -50
 
     - name: Create IPA
       run: |
@@ -37,7 +43,6 @@ jobs:
         cp -r "$APP_PATH" "$PWD/build/Payload/"
         cd "$PWD/build"
         zip -r TDSVideo.ipa Payload
-
 
     - name: Upload IPA
       uses: actions/upload-artifact@v4
